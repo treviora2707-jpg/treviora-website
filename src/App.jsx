@@ -45,7 +45,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 const EMAIL = 'treviora2707@gmail.com'
 const PHONE = '+91 90259 10642'
-const PUBLIC_SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://treviora.vercel.app').replace(/\/$/, '')
+const PUBLIC_SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://trevioraindustry.vercel.app').replace(/\/$/, '')
 const IS_ADMIN_HOST =
   import.meta.env.VITE_APP_MODE === 'admin' ||
   (typeof window !== 'undefined' && (
@@ -4095,6 +4095,44 @@ export default function App() {
   const curtainSweepRef = useRef(null)
   const transitionDirRef = useRef(1)
   const isFirstMountRef = useRef(true)
+
+  useEffect(() => {
+    const robotsMeta = document.querySelector('meta[name="robots"]')
+    if (IS_ADMIN_HOST || location.pathname.startsWith('/admin')) {
+      document.title = 'Treviora Admin Portal'
+      if (robotsMeta) robotsMeta.setAttribute('content', 'noindex, nofollow')
+      return
+    }
+    if (robotsMeta) robotsMeta.setAttribute('content', 'index, follow')
+    const routeMeta = {
+      '/': {
+        title: 'Treviora Industry | Web Design, Mobile Apps & AI Solutions',
+        description: 'Official website of Treviora Industry — delivering premium websites, mobile apps, AI solutions, and creative digital designs.',
+      },
+      '/services': {
+        title: 'Services | Treviora Industry',
+        description: 'Explore Treviora Industry services: website & web application development, mobile apps, AI & intelligent automation, and 3D digital design.',
+      },
+      '/work': {
+        title: 'Our Work | Treviora Industry',
+        description: 'Selected projects, web platforms, mobile apps, and digital products engineered by Treviora Industry.',
+      },
+      '/team': {
+        title: 'Leadership Team | Treviora Industry',
+        description: 'Meet the founders and engineering leadership team behind Treviora Industry.',
+      },
+      '/contact': {
+        title: 'Contact Us | Treviora Industry',
+        description: 'Start a project with Treviora Industry. Reach out for web development, mobile apps, AI systems, or creative design.',
+      },
+    }
+    const meta = routeMeta[location.pathname] || routeMeta['/']
+    document.title = meta.title
+    const descEl = document.querySelector('meta[name="description"]')
+    if (descEl) descEl.setAttribute('content', meta.description)
+    const canonicalEl = document.querySelector('link[rel="canonical"]')
+    if (canonicalEl) canonicalEl.setAttribute('href', `${PUBLIC_SITE_URL}${location.pathname === '/' ? '/' : location.pathname}`)
+  }, [location.pathname])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')

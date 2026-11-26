@@ -44,29 +44,64 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Treviora Industry",
-      "alternateName": "Treviora",
-      "url": "https://trevioraindustry.vercel.app",
-      "logo": "https://trevioraindustry.vercel.app/images/treviora-symbol.png",
-      "description": "Treviora Industry is a next-generation technology company delivering premium websites, mobile apps, AI solutions, and creative digital designs.",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer service",
-        "availableLanguage": ["English", "Tamil"]
-      },
-      "sameAs": [
-        "https://github.com/treviora2707-jpg"
-      ],
-      "offers": {
-        "@type": "AggregateOffer",
-        "description": "Web Design, Mobile App Development, AI Solutions, Creative Digital Design"
-      }
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://trevioraindustry.vercel.app/#website",
+          "url": "https://trevioraindustry.vercel.app/",
+          "name": "Treviora Industry",
+          "alternateName": ["Treviora", "Treviora Industry Website", "TREVIORA"],
+          "description": "Official website of Treviora Industry — Web Design, Mobile Apps, AI Solutions & Creative Digital Engineering.",
+          "publisher": {
+            "@id": "https://trevioraindustry.vercel.app/#organization"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://trevioraindustry.vercel.app/#organization",
+          "name": "Treviora Industry",
+          "alternateName": ["Treviora", "TREVIORA INDUSTRY"],
+          "url": "https://trevioraindustry.vercel.app/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://trevioraindustry.vercel.app/images/treviora-symbol.png"
+          },
+          "description": "Treviora Industry is a next-generation technology company delivering premium websites, mobile apps, AI solutions, and creative digital designs.",
+          "email": "treviora2707@gmail.com",
+          "telephone": "+91-90259-10642",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+91-90259-10642",
+            "email": "treviora2707@gmail.com",
+            "contactType": "customer service",
+            "availableLanguage": ["English", "Tamil"]
+          },
+          "sameAs": [
+            "https://www.instagram.com/trevioraindustry?hvrq=MWIxbGJybmQ1OGoxeQ==",
+            "https://www.linkedin.com/in/treviora-industry-b5b8a0426",
+            "https://www.youtube.com/@TREVIORAINDUSTRY",
+            "https://github.com/treviora2707-jpg"
+          ]
+        }
+      ]
     }
     </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>Treviora Industry — Official Website</h1>
+        <p>Treviora Industry is a next-generation technology company delivering premium websites, mobile apps, AI solutions, and creative digital designs.</p>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/services">Services</a>
+          <a href="/work">Work</a>
+          <a href="/team">Team</a>
+          <a href="/contact">Contact</a>
+        </nav>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
