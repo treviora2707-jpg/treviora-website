@@ -14,6 +14,7 @@ import {
 } from './motion/trevioraMotion'
 
 const CinematicBackdrop3D = lazy(() => import('./components/CinematicBackdrop3D'))
+const PartnerLogo3D = lazy(() => import('./components/PartnerLogo3D'))
 
 class WebGLErrorBoundary extends Component {
   constructor(props) {
@@ -2537,6 +2538,70 @@ function Team() {
                   <h3>{title}</h3>
                   <p>{desc}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="partner-companies-section" data-reveal style={{ marginTop: '56px' }}>
+            <SectionHeading
+              eyebrow="Strategic Collaborations"
+              title="Partner Companies"
+              text="Creative studios and technology partners collaborating with TREVIORA INDUSTRY"
+            />
+            <div className="partner-companies-list">
+              {[
+                {
+                  logoIndex: 0,
+                  name: 'Rejish Design Studio',
+                  role: 'Creative Design & Multimedia Partner',
+                  description:
+                    'Rejish Pandian is our creative design and multimedia partner, providing professional graphic design, video editing, motion graphics, and visual content production. Their creative expertise supports our branding, promotional materials, and multimedia requirements, ensuring high-quality visual communication across our projects.',
+                  website: 'https://rejishpandian.framer.media/',
+                },
+                {
+                  logoIndex: 1,
+                  name: 'CEFABEX Innovation',
+                  role: 'Technology & Innovation Partner',
+                  description:
+                    'CEFABEX Innovation collaborates with TREVIORA INDUSTRY on forward-thinking engineering, emerging technology initiatives, and next-generation digital innovation.',
+                  website: null,
+                },
+                {
+                  logoIndex: 2,
+                  name: 'STONZ Animation Studio',
+                  role: 'Animation & Game Development Partner',
+                  description:
+                    'STONZ Animation Studio is our creative animation and game development partner, specializing in anime development, 3D modelling, character design, and game development. Their team brings creative concepts to life through high-quality animations, detailed 3D assets, and immersive digital experiences, supporting our creative and development projects.',
+                  website: 'https://share.google/2KoOI4bfW9xTfKgyx',
+                },
+              ].map((partner) => (
+                <article className="partner-company-card tilt-card" key={partner.name}>
+                  <div className="tilt-card-glare" />
+                  <div className="partner-logo-stage">
+                    <Suspense fallback={<div className="partner-logo-placeholder" />}>
+                      <PartnerLogo3D logoIndex={partner.logoIndex} alt={`${partner.name} 3D Logo`} />
+                    </Suspense>
+                  </div>
+                  <div className="partner-content-col">
+                    <span className="partner-role-badge">{partner.role}</span>
+                    <h3>{partner.name}</h3>
+                    <p>{partner.description}</p>
+                    <div className="partner-actions">
+                      {partner.website ? (
+                        <a
+                          className="button button-primary"
+                          href={partner.website}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Visit Website <span>↗</span>
+                        </a>
+                      ) : (
+                        <span className="partner-coming-soon">Website: Link will be soon</span>
+                      )}
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
           </div>

@@ -1,203 +1,213 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { gsap } from 'gsap'
 
-const INTRO_SESSION_KEY = 'treviora_intro_seen'
+const WORD_LETTERS = 'TREVIORA'.split('')
 
 /**
- * Signature once-per-session opening cinematic sequence on "/":
- * 1) Dark navy stage + tiny cyan center spark expanding into dual energy rings
- * 2) Refractive light reveal of the TREVIORA symbol emblem
- * 3) Kinetic brand wordmark reveal ("TREVIORA INDUSTRY")
- * 4) Cyan-violet wave sweep -> smooth portal dissolution into the live site
+ * Full-screen cinematic startup intro for TREVIORA.
+ * Plays on initial website launch with responsive desktop & mobile scaling.
  */
 export default function CinematicIntro({ onComplete }) {
-  const { pathname } = useLocation()
-  const [active, setActive] = useState(() => {
+  const [visible, setVisible] = useState(() => {
     if (typeof window === 'undefined') return false
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
-    if (window.location.pathname !== '/') return false
-    try {
-      return sessionStorage.getItem(INTRO_SESSION_KEY) !== '1'
-    } catch {
-      return false
-    }
+    return !window.location.pathname.startsWith('/admin')
   })
+  const [done, setDone] = useState(false)
+  const [pct, setPct] = useState(0)
+  const [progress, setProgress] = useState(0)
 
-  const rootRef = useRef(null)
-  const sparkRef = useRef(null)
-  const ringOuterRef = useRef(null)
-  const ringInnerRef = useRef(null)
-  const logoWrapRef = useRef(null)
-  const logoGlowRef = useRef(null)
-  const brandCharsRef = useRef([])
-  const subtitleRef = useRef(null)
-  const waveRef = useRef(null)
-  const tlRef = useRef(null)
+  const canvasRef = useRef(null)
+  const mountedRef = useRef(true)
 
-  const finishIntro = (immediate = false) => {
-    try {
-      sessionStorage.setItem(INTRO_SESSION_KEY, '1')
-    } catch { /* ignore */ }
+  useEffect(() => {
+    if (!visible) return undefined
+    mountedRef.current = true
 
-    if (tlRef.current && immediate) {
-      tlRef.current.kill()
-    }
+    const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const minMs = rm ? 1200 : 5200
 
-    const root = rootRef.current
-    if (!root || immediate) {
-      if (root) {
-        gsap.to(root, {
-          opacity: 0,
-          duration: 0.28,
-          ease: 'power2.out',
-          onComplete: () => {
-            setActive(false)
-            if (onComplete) onComplete()
-          },
-        })
-      } else {
-        setActive(false)
-        if (onComplete) onComplete()
+    document.documentElement.classList.add('tv-lock')
+
+    let particleRaf = 0
+    let onResize = null
+
+    if (!rm && canvasRef.current) {
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      let W = 0
+      let H = 0
+      const particles = []
+
+      const resize = () => {
+        W = canvas.width = Math.floor(window.innerWidth * dpr)
+        H = canvas.height = Math.floor(window.innerHeight * dpr)
       }
-      return
+      resize()
+      onResize = resize
+      window.addEventListener('resize', resize, { passive: true })
+
+      const count = window.innerWidth < 600 ? 30 : 56
+      for (let i = 0; i < count; i += 1) {
+        particles.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: (Math.random() * 1.4 + 0.4) * dpr,
+          vx: (Math.random() - 0.5) * 0.3 * dpr,
+          vy: (Math.random() - 0.5) * 0.3 * dpr,
+        })
+      }
+
+      const draw = () => {
+        if (!mountedRef.current || !ctx) return
+        ctx.clearRect(0, 0, W, H)
+        const lim = (window.innerWidth < 600 ? 95 : 130) * dpr
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i]
+          p.x = (p.x + p.vx + W) % W
+          p.y = (p.y + p.vy + H) % H
+          ctx.fillStyle = 'rgba(170,200,255,.7)'
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, p.r, 0, 6.283)
+          ctx.fill()
+          for (let j = i + 1; j < particles.length; j += 1) {
+            const q = particles[j]
+            const dx = p.x - q.x
+            const dy = p.y - q.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            if (dist < lim) {
+              ctx.strokeStyle = `rgba(90,140,255,${(1 - dist / lim) * 0.25})`
+              ctx.lineWidth = dpr
+              ctx.beginPath()
+              ctx.moveTo(p.x, p.y)
+              ctx.lineTo(q.x, q.y)
+              ctx.stroke()
+            }
+          }
+        }
+        particleRaf = requestAnimationFrame(draw)
+      }
+      particleRaf = requestAnimationFrame(draw)
     }
 
-    setActive(false)
-    if (onComplete) onComplete()
-  }
-
-  useEffect(() => {
-    if (pathname !== '/' && active) {
-      finishIntro(true)
+    const t0 = performance.now()
+    let loaded = document.readyState === 'complete'
+    const onLoad = () => {
+      loaded = true
     }
-  }, [pathname, active])
+    if (!loaded) window.addEventListener('load', onLoad, { once: true })
 
-  useEffect(() => {
-    if (!active) return undefined
+    let tickRaf = 0
+    let t1 = 0
+    let t2 = 0
+    let finished = false
 
-    const root = rootRef.current
-    const spark = sparkRef.current
-    const ringOuter = ringOuterRef.current
-    const ringInner = ringInnerRef.current
-    const logoWrap = logoWrapRef.current
-    const logoGlow = logoGlowRef.current
-    const chars = brandCharsRef.current.filter(Boolean)
-    const subtitle = subtitleRef.current
-    const wave = waveRef.current
-    if (!root || !spark || !ringOuter || !ringInner || !logoWrap) return undefined
+    const finish = () => {
+      finished = true
+      setProgress(1)
+      setPct(100)
+      t1 = window.setTimeout(() => {
+        if (!mountedRef.current) return
+        setDone(true)
+        t2 = window.setTimeout(() => {
+          if (!mountedRef.current) return
+          document.documentElement.classList.remove('tv-lock')
+          try {
+            sessionStorage.setItem('tv-intro', '1')
+          } catch { /* ignore */ }
+          document.dispatchEvent(new Event('tv:intro-done'))
+          setVisible(false)
+          if (onComplete) onComplete()
+        }, rm ? 350 : 2000)
+      }, rm ? 150 : 500)
+    }
 
-    const tl = gsap.timeline({
-      onComplete: () => finishIntro(false),
-    })
-    tlRef.current = tl
-
-    tl.set(root, { clipPath: 'circle(100% at 50% 50%)', opacity: 1 })
-      .set(spark, { scale: 0, opacity: 1 })
-      .set([ringOuter, ringInner], { scale: 0.15, opacity: 0, rotation: 0 })
-      .set(logoWrap, { clipPath: 'inset(50% 0% 50% 0%)', scale: 0.84, opacity: 0 })
-      .set(logoGlow, { opacity: 0, scale: 0.7 })
-      .set(chars, { y: 18, opacity: 0, filter: 'blur(4px)' })
-      .set(subtitle, { y: 10, opacity: 0, letterSpacing: '0.45em' })
-      .set(wave, { xPercent: -120, opacity: 0.85 })
-
-    // 1. Center cyan spark ignites
-    tl.to(spark, { scale: 1.4, duration: 0.34, ease: 'power3.out' })
-      .to(spark, { scale: 0.2, opacity: 0, duration: 0.28, ease: 'power2.in' }, 0.36)
-
-    // 2. Concentric cyan & violet energy rings expand
-    tl.to(ringOuter, { scale: 1, opacity: 0.85, rotation: 48, duration: 0.65, ease: 'expo.out' }, 0.24)
-      .to(ringInner, { scale: 1, opacity: 0.75, rotation: -64, duration: 0.6, ease: 'expo.out' }, 0.3)
-
-    // 3. TREVIORA emblem light-refraction reveal
-    tl.to(logoGlow, { opacity: 0.9, scale: 1.15, duration: 0.55, ease: 'power2.out' }, 0.42)
-      .to(logoWrap, {
-        clipPath: 'inset(0% 0% 0% 0%)',
-        scale: 1,
-        opacity: 1,
-        duration: 0.62,
-        ease: 'expo.out',
-      }, 0.46)
-
-    // 4. Kinetic character typography reveal
-    tl.to(chars, {
-      y: 0,
-      opacity: 1,
-      filter: 'blur(0px)',
-      duration: 0.42,
-      stagger: 0.032,
-      ease: 'power3.out',
-    }, 0.78)
-      .to(subtitle, {
-        y: 0,
-        opacity: 1,
-        letterSpacing: '0.28em',
-        duration: 0.46,
-        ease: 'power2.out',
-      }, 0.98)
-
-    // 5. Cyan-violet energy wave sweep + seamless iris reveal into homepage
-    tl.to(wave, { xPercent: 125, duration: 0.65, ease: 'power2.inOut' }, 1.25)
-      .to(root, {
-        clipPath: 'circle(0% at 50% 50%)',
-        opacity: 0.2,
-        duration: 0.56,
-        ease: 'expo.inOut',
-      }, 1.56)
+    const tick = (now) => {
+      if (!mountedRef.current) return
+      const k = Math.min((now - t0) / minMs, 1)
+      if (!finished) {
+        const eased = Math.min(0.99, 1 - Math.pow(1 - k, 2))
+        setProgress(eased)
+        setPct(Math.round(eased * 100))
+      }
+      if (k >= 1 && loaded) {
+        if (!finished) finish()
+        return
+      }
+      tickRaf = requestAnimationFrame(tick)
+    }
+    tickRaf = requestAnimationFrame(tick)
 
     return () => {
-      tl.kill()
+      mountedRef.current = false
+      if (particleRaf) cancelAnimationFrame(particleRaf)
+      if (tickRaf) cancelAnimationFrame(tickRaf)
+      if (t1) clearTimeout(t1)
+      if (t2) clearTimeout(t2)
+      if (onResize) window.removeEventListener('resize', onResize)
+      window.removeEventListener('load', onLoad)
+      document.documentElement.classList.remove('tv-lock')
     }
-  }, [active])
+  }, [visible, onComplete])
 
-  if (!active) return null
+  if (!visible) return null
 
-  const brandLetters = 'TREVIORA INDUSTRY'.split('')
+  const statusText =
+    pct < 35
+      ? 'Initializing core'
+      : pct < 70
+        ? 'Loading modules'
+        : pct < 100
+          ? 'Calibrating systems'
+          : 'Ready'
 
   return (
     <div
-      ref={rootRef}
-      className="treviora-cinematic-intro"
-      role="dialog"
-      aria-label="TREVIORA Opening Experience"
+      id="tv-splash"
+      className={done ? 'done' : ''}
+      role="status"
+      aria-label="Loading Treviora"
     >
-      <div className="intro-radial-mist" aria-hidden="true" />
-      <div ref={waveRef} className="intro-energy-wave" aria-hidden="true" />
+      <div className="tv-grid" aria-hidden="true" />
+      <canvas ref={canvasRef} id="tv-canvas" aria-hidden="true" />
+      <div className="tv-vig" aria-hidden="true" />
+      <i className="tv-c tl" aria-hidden="true" />
+      <i className="tv-c tr" aria-hidden="true" />
+      <i className="tv-c bl" aria-hidden="true" />
+      <i className="tv-c br" aria-hidden="true" />
 
-      <div className="intro-center-stage">
-        <div className="intro-emblem-rig">
-          <div ref={sparkRef} className="intro-core-spark" aria-hidden="true" />
-          <div ref={ringOuterRef} className="intro-energy-ring outer" aria-hidden="true" />
-          <div ref={ringInnerRef} className="intro-energy-ring inner" aria-hidden="true" />
-          <div ref={logoGlowRef} className="intro-logo-refraction" aria-hidden="true" />
-
-          <div ref={logoWrapRef} className="intro-logo-frame">
-            <img src="/images/treviora-symbol.png" alt="TREVIORA Logo" />
-          </div>
+      <div className="tv-stage">
+        <div className="tv-mark">
+          <div className="tv-flash" aria-hidden="true" />
+          <img className="tv-ring" src="/images/tv-ring.png" alt="" />
+          <img className="tv-body" src="/images/tv-body.png" alt="TREVIORA" />
+          <div className="tv-scanline" aria-hidden="true" />
+          <div className="tv-shock" aria-hidden="true" />
+          <div className="tv-streak" aria-hidden="true" />
+          <div className="tv-streak b" aria-hidden="true" />
         </div>
 
-        <div className="intro-wordmark" aria-label="TREVIORA INDUSTRY">
-          {brandLetters.map((char, idx) => (
+        <div className="tv-word" id="tv-word" aria-label="Treviora">
+          {WORD_LETTERS.map((ch, i) => (
             <span
-              key={idx}
-              ref={(el) => { brandCharsRef.current[idx] = el }}
-              className={`intro-char${char === ' ' ? ' is-space' : idx >= 9 ? ' is-cyan' : ''}`}
+              key={`${ch}-${i}`}
+              aria-hidden="true"
+              style={{ animationDelay: `${(2.9 + i * 0.07).toFixed(2)}s` }}
             >
-              {char === ' ' ? '\u00A0' : char}
+              {ch}
             </span>
           ))}
         </div>
 
-        <p ref={subtitleRef} className="intro-subtitle">TURNING IDEAS INTO DIGITAL SOLUTIONS</p>
+        <p className="tv-tag">Engineering Tomorrow. Empowering Humanity.</p>
       </div>
 
-      <button
-        type="button"
-        className="intro-skip-btn"
-        onClick={() => finishIntro(true)}
-      >
-        Skip Intro <span>↗</span>
-      </button>
+      <div className="tv-hud">
+        <span id="tv-status">{statusText}</span>
+        <div className="tv-line">
+          <i id="tv-fill" style={{ '--p': progress }} />
+        </div>
+        <span id="tv-pct">{pct}%</span>
+      </div>
     </div>
   )
 }
