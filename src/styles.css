@@ -276,10 +276,9 @@ img {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 42%, rgba(12, 32, 64, 0.98), #050d1c 85%);
-  clip-path: inset(50% 0% 50% 0%);
+  background: linear-gradient(120deg, #00000a, #0a1a55);
   overflow: hidden;
-  will-change: opacity, transform;
+  will-change: transform;
 }
 
 .treviora-curtain-sweep {
@@ -311,15 +310,15 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   opacity: 0;
+  will-change: transform, opacity;
 }
 
 .treviora-curtain-crest img {
-  width: 58px;
-  height: 58px;
+  width: min(32vw, 110px);
+  height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 0 22px rgba(0, 229, 255, 0.75));
 }
 
 .treviora-curtain-crest span {
@@ -341,6 +340,92 @@ img {
   }
   .treviora-curtain-crest img {
     filter: none;
+  }
+}
+
+/* ── Orbit – Cinematic Page Change Transition (GPU 60fps) ── */
+.tv-orbit-cut {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.tv-orbit-cut.act {
+  visibility: visible;
+  pointer-events: all;
+}
+
+.tv-orbit-cut .u {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform: translate3d(100%, 0, 0);
+  background: linear-gradient(120deg, #00000a, #0a1a55);
+  transition: transform 0.4s cubic-bezier(0.7, 0, 0.3, 1);
+  will-change: transform;
+}
+
+.tv-orbit-cut.in .u {
+  transform: translate3d(0, 0, 0);
+}
+
+.tv-orbit-cut.out .u {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.tv-orbit-cut .tv-orbit-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(44vw, 240px);
+  aspect-ratio: 800 / 619;
+  transform: translate3d(-50%, -50%, 0) scale(0.8);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.tv-orbit-cut .tv-orbit-logo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tv-orbit-cut.show .tv-orbit-logo {
+  opacity: 1;
+  transform: translate3d(-50%, -50%, 0) scale(1);
+}
+
+.tv-orbit-page-in {
+  animation: tv-orbit-pgin 0.45s ease-out both;
+}
+
+@keyframes tv-orbit-pgin {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (max-width: 767px) {
+  .tv-orbit-cut .u {
+    transition-duration: 0.28s;
+  }
+  .tv-orbit-cut .tv-orbit-logo {
+    width: min(50vw, 190px);
+    transition-duration: 0.2s;
+  }
+  .tv-orbit-page-in {
+    animation-duration: 0.3s;
   }
 }
 

@@ -843,21 +843,19 @@ function TechParticlesCanvas() {
 }
 
 /* ── Signature TREVIORA Branded Transition Curtain ── */
-function RouteTransitionOverlay({ curtainRefs }) {
+function RouteTransitionOverlay({ cutState }) {
+  const classes = ['tv-orbit-cut']
+  if (cutState.act) classes.push('act')
+  if (cutState.in) classes.push('in')
+  if (cutState.show) classes.push('show')
+  if (cutState.out) classes.push('out')
   return (
-    <div
-      ref={curtainRefs?.root}
-      className="page-transition-overlay treviora-signature-curtain"
-      aria-hidden="true"
-    >
-      <div ref={curtainRefs?.panel} className="treviora-curtain-panel">
-        <div ref={curtainRefs?.sweep} className="treviora-curtain-sweep" />
-        <div ref={curtainRefs?.crest} className="treviora-curtain-crest">
-          <img src="/images/treviora-symbol.png" alt="" />
-          <span>TREVIORA</span>
-        </div>
+    <div className={classes.join(' ')} aria-hidden="true">
+      <i className="u" />
+      <div className="tv-orbit-logo">
+        <img src="/images/tv-intro-w.png" alt="" />
+        <img src="/images/tv-intro-b.png" alt="" />
       </div>
-      <div ref={curtainRefs?.line} className="treviora-curtain-line" />
     </div>
   )
 }
@@ -4154,12 +4152,9 @@ export default function App() {
   })
   const appRef = useRef(null)
   const transitionStageRef = useRef(null)
-  const curtainRootRef = useRef(null)
-  const curtainPanelRef = useRef(null)
-  const curtainLineRef = useRef(null)
-  const curtainCrestRef = useRef(null)
-  const curtainSweepRef = useRef(null)
-  const transitionDirRef = useRef(1)
+  const [cutState, setCutState] = useState({ act: false, in: false, show: false, out: false })
+  const [pageEnterKey, setPageEnterKey] = useState(0)
+  const transitionTimersRef = useRef([])
   const isFirstMountRef = useRef(true)
 
   useEffect(() => {
@@ -4213,46 +4208,63 @@ export default function App() {
     }
   }, [])
 
-  const curtainRefs = useMemo(() => ({
-    root: curtainRootRef,
-    panel: curtainPanelRef,
-    line: curtainLineRef,
-    crest: curtainCrestRef,
-    sweep: curtainSweepRef,
-  }), [])
-
-  // Signature TREVIORA Route Exit: Custom Multi-Personality Aperture & Swap
+  // Orbit – Cinematic Page Change Transition (GPU-only for 60fps mobile & desktop)
   useEffect(() => {
     if (location.pathname === displayLocation.pathname) return undefined
 
-    const stage = transitionStageRef.current
-    const prevIdx = getRouteIndex(displayLocation.pathname, services, people)
-    const nextIdx = getRouteIndex(location.pathname, services, people)
-    const dir = nextIdx >= prevIdx ? 1 : -1
-    transitionDirRef.current = dir
+    transitionTimersRef.current.forEach((id) => clearTimeout(id))
+    transitionTimersRef.current = []
 
-    if (!stage || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) {
       window.scrollTo({ top: 0, behavior: 'instant' })
       setDisplayLocation(location)
       return undefined
     }
 
-    const outTl = runSignatureTransitionOut(
-      stage,
-      curtainRefs,
-      dir,
-      location.pathname,
-      services,
-      people,
-      () => {
-        setDisplayLocation(location)
-      }
-    )
+    const isMobile = window.innerWidth < 768
+    const showLogoAt = isMobile ? 90 : 140
+    const swapAt = isMobile ? 280 : 400
+    const slideOutAt = isMobile ? 370 : 520
+    const cleanupAt = isMobile ? 660 : 940
+
+    setCutState({ act: true, in: false, show: false, out: false })
+
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setCutState({ act: true, in: true, show: false, out: false })
+      })
+    })
+
+    const t1 = window.setTimeout(() => {
+      setCutState({ act: true, in: true, show: true, out: false })
+    }, showLogoAt)
+
+    const t2 = window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      setDisplayLocation(location)
+      setPageEnterKey((k) => k + 1)
+    }, swapAt)
+
+    const t3 = window.setTimeout(() => {
+      setCutState({ act: true, in: true, show: false, out: true })
+    }, slideOutAt)
+
+    const t4 = window.setTimeout(() => {
+      setCutState({ act: false, in: false, show: false, out: false })
+      ScrollTrigger.refresh()
+    }, cleanupAt)
+
+    transitionTimersRef.current = [t1, t2, t3, t4]
 
     return () => {
-      if (outTl) outTl.kill()
+      cancelAnimationFrame(rafId)
     }
-  }, [location, displayLocation, curtainRefs])
+  }, [location.pathname])
+
+  useEffect(() => () => {
+    transitionTimersRef.current.forEach((id) => clearTimeout(id))
+  }, [])
 
   useGSAP(() => {
     const media = gsap.matchMedia()
@@ -4260,26 +4272,13 @@ export default function App() {
 
     media.add('(prefers-reduced-motion: no-preference)', () => {
       const stage = transitionStageRef.current
-      if (stage) {
-        if (isFirstMountRef.current) {
-          isFirstMountRef.current = false
-          gsap.fromTo(
-            stage,
-            { opacity: 0.85, y: 10 },
-            { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out', clearProps: 'opacity,transform' }
-          )
-        } else {
-          const dir = transitionDirRef.current || 1
-          runSignatureTransitionIn(
-            stage,
-            curtainRefs,
-            dir,
-            displayLocation.pathname,
-            services,
-            people,
-            () => ScrollTrigger.refresh()
-          )
-        }
+      if (stage && isFirstMountRef.current) {
+        isFirstMountRef.current = false
+        gsap.fromTo(
+          stage,
+          { opacity: 0.85, y: 10 },
+          { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out', clearProps: 'opacity,transform' }
+        )
       }
 
       // 1. Movie-Title Hero Sequence & Choreographed Subpage PageHero
@@ -4941,9 +4940,13 @@ export default function App() {
       )}
       <TechParticlesCanvas />
       <ScrollProgressBar />
-      <RouteTransitionOverlay curtainRefs={curtainRefs} />
+      <RouteTransitionOverlay cutState={cutState} />
       <Header />
-      <div ref={transitionStageRef} className="page-transition-stage">
+      <div
+        ref={transitionStageRef}
+        key={pageEnterKey}
+        className={`page-transition-stage${pageEnterKey > 0 ? ' tv-orbit-page-in' : ''}`}
+      >
         <Routes location={displayLocation}>
           <Route path="/" element={IS_ADMIN_HOST ? <AdminPortal /> : <Home />} />
           <Route path="/about" element={<About />} />
