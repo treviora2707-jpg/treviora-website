@@ -279,6 +279,7 @@ img {
   background: radial-gradient(circle at 50% 42%, rgba(12, 32, 64, 0.98), #050d1c 85%);
   clip-path: inset(50% 0% 50% 0%);
   overflow: hidden;
+  will-change: opacity, transform;
 }
 
 .treviora-curtain-sweep {
@@ -330,10 +331,24 @@ img {
   text-shadow: 0 0 14px rgba(0, 229, 255, 0.5);
 }
 
+@media (max-width: 767px) {
+  .treviora-curtain-panel {
+    clip-path: none !important;
+    background: #010310;
+  }
+  .treviora-curtain-sweep {
+    display: none !important;
+  }
+  .treviora-curtain-crest img {
+    filter: none;
+  }
+}
+
 .page-transition-stage {
   position: relative;
   z-index: 2;
   overflow-x: clip;
+  will-change: opacity, transform;
   will-change: opacity, transform, filter;
   transform-origin: center top;
 }

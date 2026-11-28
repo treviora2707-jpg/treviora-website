@@ -78,10 +78,15 @@ function resolveRefEl(maybeRef) {
   return maybeRef && 'current' in maybeRef ? maybeRef.current : maybeRef
 }
 
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches
+}
+
 /**
- * Custom TREVIORA Multi-Variant Route Exit (~320ms):
- * Adapts clip-path aperture, directional 3D zoom/blur, cyan laser streak,
- * and chromatic gradient sweep without blocking rapid re-navigation.
+ * Custom TREVIORA Multi-Variant Route Exit:
+ * Mobile uses pure GPU transform+opacity (~180ms) for zero lag;
+ * Desktop uses personality clip-path aperture + warp zoom (~260ms).
  */
 export function runSignatureTransitionOut(stageEl, curtainRefs, dir, nextPath, services, people, onSwap) {
   const stage = resolveRefEl(stageEl)
@@ -97,6 +102,7 @@ export function runSignatureTransitionOut(stageEl, curtainRefs, dir, nextPath, s
     return null
   }
 
+  const mobile = isMobileViewport()
   const personality = getTransitionPersonality(nextPath, services, people)
   gsap.killTweensOf([stage, root, line, panel, crest, sweep].filter(Boolean))
 
@@ -106,6 +112,40 @@ export function runSignatureTransitionOut(stageEl, curtainRefs, dir, nextPath, s
       onSwap()
     },
   })
+
+  if (mobile) {
+    tl.set(root, { autoAlpha: 1 })
+      .set(panel, { clipPath: 'none', opacity: 0, force3D: true })
+      .set(line, { scaleX: 0, opacity: 1, force3D: true })
+      .set(crest, { opacity: 0, scale: 0.92, force3D: true })
+
+    tl.to(stage, {
+      opacity: 0,
+      x: -dir * 16,
+      scale: 0.97,
+      force3D: true,
+      duration: 0.16,
+      ease: 'power2.in',
+    }, 0)
+      .to(panel, {
+        opacity: 0.96,
+        duration: 0.15,
+        ease: 'power2.out',
+      }, 0)
+      .to(line, {
+        scaleX: 1,
+        duration: 0.13,
+        ease: 'power3.out',
+      }, 0)
+      .to(crest, {
+        opacity: 1,
+        scale: 1,
+        duration: 0.12,
+        ease: 'power2.out',
+      }, 0.04)
+
+    return tl
+  }
 
   const startClip =
     personality === 'portal'
@@ -118,65 +158,111 @@ export function runSignatureTransitionOut(stageEl, curtainRefs, dir, nextPath, s
     personality === 'portal' ? 'circle(125% at 50% 50%)' : 'inset(0% 0% 0% 0%)'
 
   tl.set(root, { autoAlpha: 1 })
-    .set(panel, { clipPath: startClip, opacity: 1 })
-    .set(line, { scaleX: 0, opacity: 1 })
-    .set(crest, { opacity: 0, scale: 0.88 })
-    .set(sweep, { xPercent: -115, opacity: 0.95 })
+    .set(panel, { clipPath: startClip, opacity: 1, force3D: true })
+    .set(line, { scaleX: 0, opacity: 1, force3D: true })
+    .set(crest, { opacity: 0, scale: 0.88, force3D: true })
+    .set(sweep, { xPercent: -115, opacity: 0.95, force3D: true })
 
   tl.to(stage, {
-    opacity: 0.14,
-    x: -dir * (personality === 'editorial' ? 38 : 26),
+    opacity: 0.1,
+    x: -dir * (personality === 'editorial' ? 32 : 22),
     scale: personality === 'portal' ? 0.955 : 0.98,
-    filter: 'blur(6px)',
-    duration: 0.28,
+    force3D: true,
+    duration: 0.24,
     ease: 'power2.in',
   }, 0)
 
   tl.to(line, {
     scaleX: 1,
-    duration: 0.19,
+    duration: 0.17,
     ease: 'power3.out',
   }, 0)
 
   tl.to(panel, {
     clipPath: fullClip,
-    duration: 0.27,
+    duration: 0.24,
     ease: 'power3.inOut',
-  }, 0.06)
+  }, 0.04)
 
   tl.to(line, {
     opacity: 0,
-    duration: 0.14,
-  }, 0.2)
+    duration: 0.12,
+  }, 0.16)
 
   tl.to(crest, {
     opacity: 1,
     scale: 1,
-    duration: 0.18,
+    duration: 0.16,
     ease: 'power2.out',
-  }, 0.15)
+  }, 0.12)
 
   tl.to(sweep, {
     xPercent: 125,
-    duration: 0.3,
+    duration: 0.26,
     ease: 'power2.inOut',
-  }, 0.12)
+  }, 0.08)
 
   return tl
 }
 
 /**
- * Custom TREVIORA Route Reveal (~540ms):
- * Opens the curtain matching the target page's personality while settling the stage.
+ * Custom TREVIORA Route Reveal:
+ * Mobile uses fast GPU transform+opacity (~220ms);
+ * Desktop uses personality clip-path reveal + warp settle (~420ms).
  */
 export function runSignatureTransitionIn(stageEl, curtainRefs, dir, currentPath, services, people, onSettled) {
   const stage = resolveRefEl(stageEl)
   const root = resolveRefEl(curtainRefs?.root)
   const panel = resolveRefEl(curtainRefs?.panel)
   const crest = resolveRefEl(curtainRefs?.crest)
+  const line = resolveRefEl(curtainRefs?.line)
   if (!stage) return null
 
+  const mobile = isMobileViewport()
   const personality = getTransitionPersonality(currentPath, services, people)
+
+  const tl = gsap.timeline({
+    onComplete: () => {
+      if (root) gsap.set(root, { autoAlpha: 0 })
+      if (onSettled) onSettled()
+    },
+  })
+
+  if (mobile) {
+    if (root && panel && crest) {
+      tl.to([crest, line].filter(Boolean), {
+        opacity: 0,
+        duration: 0.12,
+        ease: 'power2.in',
+      }, 0)
+        .to(panel, {
+          opacity: 0,
+          duration: 0.18,
+          ease: 'power2.out',
+        }, 0.02)
+    }
+
+    tl.fromTo(
+      stage,
+      {
+        opacity: 0.08,
+        x: dir * 16,
+        scale: 1.02,
+      },
+      {
+        opacity: 1,
+        x: 0,
+        scale: 1,
+        force3D: true,
+        duration: 0.24,
+        ease: 'power3.out',
+        clearProps: 'opacity,transform',
+      },
+      0.04
+    )
+
+    return tl
+  }
 
   const exitClip =
     personality === 'portal'
@@ -187,45 +273,37 @@ export function runSignatureTransitionIn(stageEl, curtainRefs, dir, currentPath,
           ? 'inset(0% 0% 100% 0%)'
           : 'inset(100% 0% 0% 0%)'
 
-  const tl = gsap.timeline({
-    onComplete: () => {
-      if (root) gsap.set(root, { autoAlpha: 0 })
-      if (onSettled) onSettled()
-    },
-  })
-
   if (root && panel && crest) {
     tl.to(crest, {
       opacity: 0,
       scale: 1.06,
-      duration: 0.18,
+      duration: 0.16,
       ease: 'power2.in',
     }, 0)
     .to(panel, {
       clipPath: exitClip,
-      duration: 0.44,
+      duration: 0.36,
       ease: 'expo.inOut',
-    }, 0.04)
+    }, 0.03)
   }
 
   tl.fromTo(
     stage,
     {
-      opacity: 0.18,
-      x: dir * (personality === 'editorial' ? 36 : 24),
-      scale: personality === 'portal' ? 1.028 : 1.015,
-      filter: 'blur(5px)',
+      opacity: 0.12,
+      x: dir * (personality === 'editorial' ? 30 : 22),
+      scale: personality === 'portal' ? 1.024 : 1.014,
     },
     {
       opacity: 1,
       x: 0,
       scale: 1,
-      filter: 'blur(0px)',
-      duration: 0.54,
+      force3D: true,
+      duration: 0.42,
       ease: 'power3.out',
-      clearProps: 'opacity,transform,filter',
+      clearProps: 'opacity,transform',
     },
-    0.08
+    0.06
   )
 
   return tl
