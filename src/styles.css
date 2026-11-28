@@ -6509,319 +6509,268 @@ textarea:focus-visible {
   opacity: 0.92;
 }
 
-/* ── Startup Cinematic Intro (#tv-splash) ── */
+/* ── Startup Cinematic Intro (.tv2-intro) ── */
+@property --p {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: -8%;
+}
+
 @property --a {
   syntax: '<angle>';
   inherits: false;
-  initial-value: -10deg;
+  initial-value: -12deg;
 }
 
 html.tv-lock {
   overflow: hidden;
 }
 
-#tv-splash {
+.tv2-intro {
+  --tv2-bg: #010310;
+  --tv2-blue: #2d73ff;
+  --tv2-mute: #9fb0d6;
+  --tv2-w: url('/images/tv-intro-w.png');
+  --tv2-b: url('/images/tv-intro-b.png');
   position: fixed;
   inset: 0;
   z-index: 99999;
-  background: #02050c;
+  background: var(--tv2-bg);
+  color: #fff;
+  font-family: "Segoe UI", system-ui, sans-serif;
   overflow: hidden;
-  display: grid;
-  place-items: center;
-  color: #eaf1ff;
-  font-family: 'Sora', system-ui, sans-serif;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  transition: opacity 1.1s ease 0.5s, visibility 0s 1.6s;
 }
 
-#tv-splash.done {
+.tv2-intro.open {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.8s 0.55s ease-in;
 }
 
-#tv-canvas {
+.tv2-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0;
-  animation: tv-fade 1.5s 0.2s forwards;
 }
 
-.tv-grid {
-  position: absolute;
-  inset: -50%;
-  background:
-    linear-gradient(rgba(80, 130, 255, 0.08) 1px, transparent 1px) 0 0 / 56px 56px,
-    linear-gradient(90deg, rgba(80, 130, 255, 0.08) 1px, transparent 1px) 0 0 / 56px 56px;
-  -webkit-mask-image: radial-gradient(closest-side, #000, transparent);
-  mask-image: radial-gradient(closest-side, #000, transparent);
-  opacity: 0;
-  animation: tv-fade 2s 0.3s forwards, tv-grid 12s linear infinite;
-}
-
-.tv-vig {
+.tv2-vig {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.8));
+  background: radial-gradient(circle at 50% 45%, transparent 35%, #000 100%);
+  opacity: 0.8;
 }
 
-.tv-c {
-  position: absolute;
-  width: clamp(18px, 3vw, 26px);
-  height: clamp(18px, 3vw, 26px);
-  border: 0 solid rgba(140, 180, 255, 0.6);
-  opacity: 0;
-  animation: tv-fade 0.8s 0.3s forwards;
-}
-
-.tv-c.tl {
-  top: max(14px, env(safe-area-inset-top, 14px));
-  left: max(14px, env(safe-area-inset-left, 14px));
-  border-width: 1px 0 0 1px;
-}
-
-.tv-c.tr {
-  top: max(14px, env(safe-area-inset-top, 14px));
-  right: max(14px, env(safe-area-inset-right, 14px));
-  border-width: 1px 1px 0 0;
-}
-
-.tv-c.bl {
-  bottom: max(14px, env(safe-area-inset-bottom, 14px));
-  left: max(14px, env(safe-area-inset-left, 14px));
-  border-width: 0 0 1px 1px;
-}
-
-.tv-c.br {
-  bottom: max(14px, env(safe-area-inset-bottom, 14px));
-  right: max(14px, env(safe-area-inset-right, 14px));
-  border-width: 0 1px 1px 0;
-}
-
-.tv-stage {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: clamp(14px, 3.2vh, 30px);
-  padding: 0 16px;
-  max-width: 100vw;
-  transition: transform 1.2s cubic-bezier(0.7, 0, 0.9, 0.4), opacity 0.9s ease-in, filter 1s;
-}
-
-#tv-splash.done .tv-stage {
-  transform: scale(7);
-  opacity: 0;
-  filter: blur(10px);
-}
-
-.tv-mark {
-  position: relative;
-  width: min(62vw, 380px);
-  aspect-ratio: 452 / 336;
-  filter: drop-shadow(0 0 16px rgba(110, 160, 255, 0.35));
-  animation: tv-breathe 3s 3.4s ease-in-out infinite;
-}
-
-.tv-mark img {
+.tv2-cam {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3vmin;
+  padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  animation: tv2-dolly 7s linear forwards;
+  transition: transform 1.6s cubic-bezier(0.6, 0, 0.9, 0.4), filter 1.2s;
 }
 
-.tv-body {
-  clip-path: inset(0 0 100% 0);
-  animation: tv-scan 1.2s 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+.tv2-intro.open .tv2-cam {
+  transform: scale(14);
+  filter: blur(10px) brightness(2);
 }
 
-.tv-ring {
-  --a: -10deg;
-  -webkit-mask-image: conic-gradient(from 210deg, #000 var(--a), transparent calc(var(--a) + 10deg));
-  mask-image: conic-gradient(from 210deg, #000 var(--a), transparent calc(var(--a) + 10deg));
-  animation: tv-sweep 1.4s 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.tv2-stage {
+  position: relative;
+  width: min(62vmin, 520px);
+  aspect-ratio: 800 / 619;
 }
 
-.tv-scanline {
+.tv2-stage > * {
   position: absolute;
-  left: -12%;
-  right: -12%;
-  top: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #9bbcff, #fff, #9bbcff, transparent);
-  box-shadow: 0 0 18px 3px rgba(90, 150, 255, 0.8);
-  opacity: 0;
-  animation: tv-scanline 1.2s 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  inset: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
-.tv-streak {
+.tv2-v {
+  background-image: var(--tv2-w);
+  --p: -8%;
+  animation: tv2-scan 1.4s 1.1s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+  -webkit-mask-image: linear-gradient(#000 var(--p), transparent calc(var(--p) + 8%));
+  mask-image: linear-gradient(#000 var(--p), transparent calc(var(--p) + 8%));
+  filter: drop-shadow(0 0 14px rgba(120, 170, 255, 0.6));
+}
+
+.tv2-r {
+  background-image: var(--tv2-b);
+  --a: -12deg;
+  animation: tv2-orbit 1.8s 2.3s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+  -webkit-mask-image: conic-gradient(from 200deg at 50% 55%, #000 var(--a), transparent calc(var(--a) + 14deg));
+  mask-image: conic-gradient(from 200deg at 50% 55%, #000 var(--a), transparent calc(var(--a) + 14deg));
+  filter: drop-shadow(0 0 18px var(--tv2-blue));
+}
+
+.tv2-shine {
+  -webkit-mask: var(--tv2-w) center / 100% 100% no-repeat;
+  mask: var(--tv2-w) center / 100% 100% no-repeat;
+  background: linear-gradient(105deg, transparent 42%, #fff 50%, transparent 58%) 200% 0 / 250% 100%;
+  animation: tv2-shine 1.2s 4.2s ease-in-out forwards;
+  opacity: 0.9;
+}
+
+.tv2-flare {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 140vw;
-  margin: -1px 0 0 -70vw;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(120, 170, 255, 0.9) 30%, #fff 50%, rgba(120, 170, 255, 0.9) 70%, transparent);
-  box-shadow: 0 0 24px 4px rgba(70, 130, 255, 0.6);
+  top: 46%;
+  height: 3px;
+  width: 0;
+  margin-left: 0;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, #8fb6ff, #fff, #8fb6ff, transparent);
+  box-shadow: 0 0 30px 6px rgba(45, 115, 255, 0.8);
   opacity: 0;
-  transform: scaleX(0);
-  animation: tv-streak 1.1s 0.15s ease-out forwards;
+  animation: tv2-flare 1.6s 0.3s ease-out forwards;
 }
 
-.tv-streak.b {
-  animation: tv-streakb 1s 2.7s ease-out forwards;
-}
-
-.tv-flash {
-  position: absolute;
-  inset: -120%;
-  background: radial-gradient(closest-side, rgba(150, 190, 255, 0.5), transparent);
-  opacity: 0;
-  animation: tv-flash 1.2s 2.7s ease-out forwards;
-}
-
-.tv-shock {
+.tv2-shock {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 60%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(140, 180, 255, 0.8);
+  top: 46%;
+  width: 20vmin;
+  height: 20vmin;
+  margin: -10vmin;
   border-radius: 50%;
+  border: 2px solid #6ea2ff;
   opacity: 0;
-  animation: tv-shock 1.5s 2.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation: tv2-shock 1.6s 3.7s ease-out forwards;
 }
 
-.tv-word {
+.tv2-word {
   display: flex;
   justify-content: center;
-  padding-left: clamp(0.28em, 0.8vw, 0.5em);
-  font-weight: 600;
-  font-size: clamp(19px, 5vw, 34px);
-  letter-spacing: clamp(0.28em, 0.8vw, 0.5em);
-  text-shadow: 0 0 18px rgba(90, 150, 255, 0.55);
+  font-size: clamp(22px, 7vmin, 64px);
+  font-weight: 300;
+  letter-spacing: clamp(0.24em, 1.2vw, 0.38em);
+  margin-right: calc(-1 * clamp(0.24em, 1.2vw, 0.38em));
+  padding-top: 1vmin;
   max-width: 100%;
 }
 
-.tv-word span {
+.tv2-word span {
   opacity: 0;
-  filter: blur(10px);
-  transform: translateY(8px);
-  animation: tv-letter 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  display: inline-block;
+  animation: tv2-letter 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-.tv-tag {
-  margin: 0;
-  font-weight: 300;
-  font-size: clamp(10.5px, 2.5vw, 14px);
-  letter-spacing: clamp(0.06em, 0.25vw, 0.12em);
+.tv2-word span.tv2-e {
+  color: var(--tv2-blue);
+  font-weight: 600;
+}
+
+.tv2-tag {
+  font-size: clamp(9px, 1.9vmin, 15px);
+  color: var(--tv2-mute);
+  letter-spacing: clamp(0.16em, 0.6vw, 0.3em);
   text-align: center;
-  color: rgba(200, 215, 255, 0.7);
-  clip-path: inset(0 100% 0 0);
-  animation: tv-type 1.2s 3.7s steps(42) forwards;
-}
-
-.tv-hud {
-  position: absolute;
-  left: clamp(20px, 5vw, 56px);
-  right: clamp(20px, 5vw, 56px);
-  bottom: max(clamp(24px, 6vh, 56px), calc(20px + env(safe-area-inset-bottom, 0px)));
-  display: flex;
-  align-items: center;
-  gap: clamp(10px, 2.5vw, 16px);
-  font-size: clamp(10.5px, 2.5vw, 12px);
-  font-variant-numeric: tabular-nums;
-  color: rgba(190, 208, 255, 0.75);
   opacity: 0;
-  animation: tv-fade 0.6s 0.4s forwards;
+  animation: tv2-tag 1.6s 5.3s ease forwards;
+  padding: 0 16px;
 }
 
-.tv-hud span:first-child {
-  min-width: 9.8em;
-  white-space: nowrap;
+.tv2-skip {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right, 18px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 100000;
+  background: rgba(1, 3, 16, 0.65);
+  border: 1px solid #223468;
+  color: #9fb0d6;
+  padding: 8px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
 }
 
-.tv-hud span:last-child {
-  min-width: 2.8em;
-  text-align: right;
+.tv2-skip:hover,
+.tv2-skip:focus-visible {
+  color: #fff;
+  border-color: #2d73ff;
+  outline: none;
 }
 
-.tv-line {
-  flex: 1;
-  height: 1px;
-  background: rgba(120, 160, 255, 0.2);
+@keyframes tv2-scan {
+  to { --p: 108%; }
 }
 
-.tv-line i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #3a78ff, #bcd3ff);
-  box-shadow: 0 0 10px #4c86ff;
-  transform-origin: left;
-  transform: scaleX(var(--p, 0));
+@keyframes tv2-orbit {
+  to { --a: 372deg; }
 }
 
-@keyframes tv-fade {
-  to { opacity: 1; }
+@keyframes tv2-shine {
+  to { background-position: -100% 0; }
 }
 
-@keyframes tv-grid {
-  to { transform: translateY(56px); }
+@keyframes tv2-flare {
+  0% { width: 0; opacity: 0; }
+  25% { opacity: 1; }
+  60% { width: 92vw; opacity: 1; }
+  100% { width: 92vw; opacity: 0; }
 }
 
-@keyframes tv-scan {
-  to { clip-path: inset(0); }
+@keyframes tv2-shock {
+  0% { transform: scale(0.2); opacity: 0.9; }
+  100% { transform: scale(9); opacity: 0; }
 }
 
-@keyframes tv-scanline {
-  0% { top: 0; opacity: 1; }
-  90% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
+@keyframes tv2-letter {
+  0% { opacity: 0; transform: translateY(24px) scale(1.5); filter: blur(14px); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
 
-@keyframes tv-sweep {
-  to { --a: 360deg; }
+@keyframes tv2-tag {
+  0% { opacity: 0; letter-spacing: 0.7em; }
+  100% { opacity: 1; letter-spacing: clamp(0.16em, 0.6vw, 0.3em); }
 }
 
-@keyframes tv-streak {
-  30% { opacity: 1; transform: scaleX(0.6); }
-  100% { opacity: 0; transform: scaleX(1.2) scaleY(0.2); }
+@keyframes tv2-dolly {
+  from { transform: scale(1.22); }
+  to { transform: scale(1); }
 }
 
-@keyframes tv-streakb {
-  20% { opacity: 1; transform: scaleX(0.9) scaleY(2); }
-  100% { opacity: 0; transform: scaleX(1.3) scaleY(0.2); }
-}
-
-@keyframes tv-flash {
-  20% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes tv-shock {
-  0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.3); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(6); }
-}
-
-@keyframes tv-letter {
-  to { opacity: 1; filter: blur(0); transform: none; }
-}
-
-@keyframes tv-type {
-  to { clip-path: inset(0); }
-}
-
-@keyframes tv-breathe {
-  50% { filter: drop-shadow(0 0 28px rgba(110, 160, 255, 0.6)); }
-}
-
-@media (max-width: 480px) {
-  .tv-mark {
-    width: min(68vw, 270px);
+@media (max-width: 640px) {
+  .tv2-intro {
+    height: 100dvh;
   }
-  .tv-hud span:first-child {
-    min-width: 8.8em;
+  .tv2-cam {
+    gap: 18px;
+    padding: env(safe-area-inset-top, 16px) 16px calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+  .tv2-intro.open .tv2-cam {
+    transform: scale(8);
+  }
+  .tv2-stage {
+    width: min(68vw, 310px);
+  }
+  .tv2-word {
+    font-size: clamp(20px, 6.2vw, 34px);
+    letter-spacing: clamp(0.2em, 1.4vw, 0.32em);
+    margin-right: calc(-1 * clamp(0.2em, 1.4vw, 0.32em));
+  }
+  .tv2-tag {
+    font-size: clamp(10px, 2.7vw, 13px);
+    letter-spacing: 0.14em;
+    line-height: 1.5;
+    max-width: 90vw;
+  }
+  .tv2-skip {
+    right: max(16px, env(safe-area-inset-right, 16px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    min-height: 40px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 12.5px;
   }
 }
 
@@ -6961,16 +6910,15 @@ html.tv-lock {
   .scroll-progress-bar,
   .page-transition-overlay,
   .treviora-signature-curtain,
-  #tv-canvas,
-  .tv-grid,
+  .tv2-canvas,
   .treviora-webgl-backdrop,
   .treviora-cursor-reticle,
   .scene-weave-curtains,
   .scene-contact-beam {
     display: none !important;
   }
-  #tv-splash.done .tv-stage {
-    transform: none !important;
+  .tv2-cam {
+    transition: none !important;
   }
   .ambient-beam {
     animation: none !important;

@@ -1,33 +1,55 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const WORD_LETTERS = 'TREVIORA'.split('')
 
 /**
- * Full-screen cinematic startup intro for TREVIORA.
- * Plays on initial website launch with responsive desktop & mobile scaling.
+ * Full-screen warp-starfield cinematic startup intro for TREVIORA.
+ * Replaces the previous intro; responsive across desktop and mobile viewports.
  */
 export default function CinematicIntro({ onComplete }) {
   const [visible, setVisible] = useState(() => {
     if (typeof window === 'undefined') return false
     return !window.location.pathname.startsWith('/admin')
   })
-  const [done, setDone] = useState(false)
-  const [pct, setPct] = useState(0)
-  const [progress, setProgress] = useState(0)
+  const [open, setOpen] = useState(false)
 
   const canvasRef = useRef(null)
+  const doneRef = useRef(false)
   const mountedRef = useRef(true)
+  const autoTimerRef = useRef(0)
+  const unmountTimerRef = useRef(0)
+
+  const handleOpen = useCallback(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    if (autoTimerRef.current) {
+      clearTimeout(autoTimerRef.current)
+      autoTimerRef.current = 0
+    }
+    setOpen(true)
+    const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    unmountTimerRef.current = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      document.documentElement.classList.remove('tv-lock')
+      try {
+        sessionStorage.setItem('tv-intro', '1')
+      } catch { /* ignore */ }
+      document.dispatchEvent(new Event('tv:intro-done'))
+      setVisible(false)
+      if (onComplete) onComplete()
+    }, rm ? 120 : 1600)
+  }, [onComplete])
 
   useEffect(() => {
     if (!visible) return undefined
     mountedRef.current = true
-
-    const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const minMs = rm ? 1200 : 5200
-
+    doneRef.current = false
     document.documentElement.classList.add('tv-lock')
 
-    let particleRaf = 0
+    const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    autoTimerRef.current = window.setTimeout(handleOpen, rm ? 600 : 7300)
+
+    let rafId = 0
     let onResize = null
 
     if (!rm && canvasRef.current) {
@@ -46,168 +68,103 @@ export default function CinematicIntro({ onComplete }) {
       onResize = resize
       window.addEventListener('resize', resize, { passive: true })
 
-      const count = window.innerWidth < 600 ? 30 : 56
+      const count = window.innerWidth < 640 ? 90 : 140
       for (let i = 0; i < count; i += 1) {
         particles.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          r: (Math.random() * 1.4 + 0.4) * dpr,
-          vx: (Math.random() - 0.5) * 0.3 * dpr,
-          vy: (Math.random() - 0.5) * 0.3 * dpr,
+          a: Math.random() * 6.283,
+          d: Math.random() * 0.6,
+          z: (Math.random() * 1.2 + 0.4) * dpr,
         })
       }
 
+      const t0 = performance.now()
       const draw = () => {
-        if (!mountedRef.current || !ctx) return
-        ctx.clearRect(0, 0, W, H)
-        const lim = (window.innerWidth < 600 ? 95 : 130) * dpr
+        if (!mountedRef.current || doneRef.current || !ctx) return
+        const t = (performance.now() - t0) / 1000
+        const sp = Math.max(0.0015, 0.05 * Math.exp(-t * 1.1))
+        const cx = W / 2
+        const cy = H * 0.46
+        const maxR = Math.hypot(W, H) / 2
+
+        ctx.fillStyle = 'rgba(1,3,16,.28)'
+        ctx.fillRect(0, 0, W, H)
+
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i]
-          p.x = (p.x + p.vx + W) % W
-          p.y = (p.y + p.vy + H) % H
-          ctx.fillStyle = 'rgba(170,200,255,.7)'
-          ctx.beginPath()
-          ctx.arc(p.x, p.y, p.r, 0, 6.283)
-          ctx.fill()
-          for (let j = i + 1; j < particles.length; j += 1) {
-            const q = particles[j]
-            const dx = p.x - q.x
-            const dy = p.y - q.y
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            if (dist < lim) {
-              ctx.strokeStyle = `rgba(90,140,255,${(1 - dist / lim) * 0.25})`
-              ctx.lineWidth = dpr
-              ctx.beginPath()
-              ctx.moveTo(p.x, p.y)
-              ctx.lineTo(q.x, q.y)
-              ctx.stroke()
-            }
+          let d0 = p.d
+          p.d += sp * (0.3 + p.d * 2.2)
+          if (p.d > 1.05) {
+            p.d = Math.random() * 0.05
+            p.a = Math.random() * 6.283
+            d0 = p.d
           }
+          const ca = Math.cos(p.a)
+          const sa = Math.sin(p.a)
+          ctx.strokeStyle = `rgba(${(110 + p.z * 50) | 0},160,255,${Math.min(p.d * 1.4, 0.9)})`
+          ctx.lineWidth = p.z
+          ctx.beginPath()
+          ctx.moveTo(cx + ca * d0 * maxR, cy + sa * d0 * maxR)
+          ctx.lineTo(cx + ca * p.d * maxR, cy + sa * p.d * maxR)
+          ctx.stroke()
         }
-        particleRaf = requestAnimationFrame(draw)
+        rafId = requestAnimationFrame(draw)
       }
-      particleRaf = requestAnimationFrame(draw)
+      rafId = requestAnimationFrame(draw)
     }
-
-    const t0 = performance.now()
-    let loaded = document.readyState === 'complete'
-    const onLoad = () => {
-      loaded = true
-    }
-    if (!loaded) window.addEventListener('load', onLoad, { once: true })
-
-    let tickRaf = 0
-    let t1 = 0
-    let t2 = 0
-    let finished = false
-
-    const finish = () => {
-      finished = true
-      setProgress(1)
-      setPct(100)
-      t1 = window.setTimeout(() => {
-        if (!mountedRef.current) return
-        setDone(true)
-        t2 = window.setTimeout(() => {
-          if (!mountedRef.current) return
-          document.documentElement.classList.remove('tv-lock')
-          try {
-            sessionStorage.setItem('tv-intro', '1')
-          } catch { /* ignore */ }
-          document.dispatchEvent(new Event('tv:intro-done'))
-          setVisible(false)
-          if (onComplete) onComplete()
-        }, rm ? 350 : 2000)
-      }, rm ? 150 : 500)
-    }
-
-    const tick = (now) => {
-      if (!mountedRef.current) return
-      const k = Math.min((now - t0) / minMs, 1)
-      if (!finished) {
-        const eased = Math.min(0.99, 1 - Math.pow(1 - k, 2))
-        setProgress(eased)
-        setPct(Math.round(eased * 100))
-      }
-      if (k >= 1 && loaded) {
-        if (!finished) finish()
-        return
-      }
-      tickRaf = requestAnimationFrame(tick)
-    }
-    tickRaf = requestAnimationFrame(tick)
 
     return () => {
       mountedRef.current = false
-      if (particleRaf) cancelAnimationFrame(particleRaf)
-      if (tickRaf) cancelAnimationFrame(tickRaf)
-      if (t1) clearTimeout(t1)
-      if (t2) clearTimeout(t2)
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+      if (unmountTimerRef.current) clearTimeout(unmountTimerRef.current)
+      if (rafId) cancelAnimationFrame(rafId)
       if (onResize) window.removeEventListener('resize', onResize)
-      window.removeEventListener('load', onLoad)
       document.documentElement.classList.remove('tv-lock')
     }
-  }, [visible, onComplete])
+  }, [visible, handleOpen])
 
   if (!visible) return null
 
-  const statusText =
-    pct < 35
-      ? 'Initializing core'
-      : pct < 70
-        ? 'Loading modules'
-        : pct < 100
-          ? 'Calibrating systems'
-          : 'Ready'
-
   return (
-    <div
-      id="tv-splash"
-      className={done ? 'done' : ''}
-      role="status"
-      aria-label="Loading Treviora"
-    >
-      <div className="tv-grid" aria-hidden="true" />
-      <canvas ref={canvasRef} id="tv-canvas" aria-hidden="true" />
-      <div className="tv-vig" aria-hidden="true" />
-      <i className="tv-c tl" aria-hidden="true" />
-      <i className="tv-c tr" aria-hidden="true" />
-      <i className="tv-c bl" aria-hidden="true" />
-      <i className="tv-c br" aria-hidden="true" />
+    <>
+      <div
+        className={`tv2-intro${open ? ' open' : ''}`}
+        role="status"
+        aria-label="Loading Treviora"
+      >
+        <canvas ref={canvasRef} className="tv2-canvas" aria-hidden="true" />
+        <div className="tv2-vig" aria-hidden="true" />
+        <div className="tv2-flare" aria-hidden="true" />
+        <div className="tv2-shock" aria-hidden="true" />
 
-      <div className="tv-stage">
-        <div className="tv-mark">
-          <div className="tv-flash" aria-hidden="true" />
-          <img className="tv-ring" src="/images/tv-ring.png" alt="" />
-          <img className="tv-body" src="/images/tv-body.png" alt="TREVIORA" />
-          <div className="tv-scanline" aria-hidden="true" />
-          <div className="tv-shock" aria-hidden="true" />
-          <div className="tv-streak" aria-hidden="true" />
-          <div className="tv-streak b" aria-hidden="true" />
+        <div className="tv2-cam">
+          <div className="tv2-stage">
+            <div className="tv2-v" />
+            <div className="tv2-r" />
+            <div className="tv2-shine" />
+          </div>
+
+          <div className="tv2-word" aria-label="Treviora">
+            {WORD_LETTERS.map((ch, i) => (
+              <span
+                key={`${ch}-${i}`}
+                aria-hidden="true"
+                className={i === 2 ? 'tv2-e' : undefined}
+                style={{ animationDelay: `${(4.3 + i * 0.09).toFixed(2)}s` }}
+              >
+                {ch}
+              </span>
+            ))}
+          </div>
+
+          <div className="tv2-tag">ENGINEERING TOMORROW, EMPOWERING HUMANITY</div>
         </div>
-
-        <div className="tv-word" id="tv-word" aria-label="Treviora">
-          {WORD_LETTERS.map((ch, i) => (
-            <span
-              key={`${ch}-${i}`}
-              aria-hidden="true"
-              style={{ animationDelay: `${(2.9 + i * 0.07).toFixed(2)}s` }}
-            >
-              {ch}
-            </span>
-          ))}
-        </div>
-
-        <p className="tv-tag">Engineering Tomorrow. Empowering Humanity.</p>
       </div>
 
-      <div className="tv-hud">
-        <span id="tv-status">{statusText}</span>
-        <div className="tv-line">
-          <i id="tv-fill" style={{ '--p': progress }} />
-        </div>
-        <span id="tv-pct">{pct}%</span>
-      </div>
-    </div>
+      {!open && (
+        <button type="button" className="tv2-skip" onClick={handleOpen}>
+          Skip intro
+        </button>
+      )}
+    </>
   )
 }

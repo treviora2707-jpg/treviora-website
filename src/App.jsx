@@ -41,6 +41,15 @@ import {
   adminDeleteProject,
   adminListInquiries,
 } from './lib/supabase'
+import {
+  checkRateLimit,
+  isValidEmail,
+  resetRateLimit,
+  sanitizeMultilineText,
+  sanitizeText,
+  sanitizeUrl,
+  validateImageFile,
+} from './lib/security'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
@@ -49,10 +58,7 @@ const PHONE = '+91 90259 10642'
 const PUBLIC_SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://trevioraindustry.vercel.app').replace(/\/$/, '')
 const IS_ADMIN_HOST =
   import.meta.env.VITE_APP_MODE === 'admin' ||
-  (typeof window !== 'undefined' && (
-    window.location.hostname.toLowerCase().includes('treviora-admin') ||
-    new URLSearchParams(window.location.search).get('app') === 'admin'
-  ))
+  (typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('treviora-admin'))
 
 const socialLinks = [
   ['Instagram', 'https://www.instagram.com/trevioraindustry?hvrq=MWIxbGJybmQ1OGoxeQ=='],
@@ -1044,7 +1050,6 @@ function Footer() {
           <h3>Quick Links</h3>
           <div className="footer-links">
             {navItems.map(([label, path]) => <Link key={path} to={path}>{label}</Link>)}
-            <Link to="/admin">Admin Access</Link>
           </div>
         </div>
         <div>
@@ -2986,7 +2991,6 @@ function Projects() {
           <>
             <Link className="button button-primary" to="/contact">Start Your Project <span>↗</span></Link>
             <Link className="button button-outline" to="/pricing">Pricing Plans</Link>
-            <Link className="button button-outline" to="/admin">Admin Portal ↗</Link>
           </>
         }
       />
@@ -3026,12 +3030,14 @@ function Projects() {
 
             <div className="projects-showcase-grid">
               {filteredProjects.map((project) => {
-                const isExternalUrl = Boolean(project.project_url && /^https?:\/\//i.test(project.project_url))
+                const safeProjectUrl = sanitizeUrl(project.project_url, '')
+                const safeImageUrl = sanitizeUrl(project.image, '/images/service-web-development.webp')
+                const isExternalUrl = Boolean(safeProjectUrl && /^https?:\/\//i.test(safeProjectUrl))
                 const cardContent = (
                   <>
                     <div className="tilt-card-glare" />
                     <div className="project-card-image">
-                      <img src={project.image} alt={project.title} loading="lazy" width="800" height="530" />
+                      <img src={safeImageUrl} alt={project.title} loading="lazy" width="800" height="530" />
                       <div className="card-hover-action" aria-hidden="true">
                         <span>{isExternalUrl ? 'Open Live Project' : 'View Architecture'}</span>
                         <b>↗</b>
@@ -3053,9 +3059,9 @@ function Projects() {
 
                 return isExternalUrl ? (
                   <a
-                    href={project.project_url}
+                    href={safeProjectUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="project-showcase-card tilt-card"
                     key={project.id || project.title}
                   >
@@ -3106,14 +3112,7 @@ const DOMAIN_IMAGE_PRESETS = [
 ]
 
 function AdminPortal() {
-  const [credentials, setCredentials] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem('treviora_admin_auth')
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  })
+  const [credentials, setCredentials] = useState(null)
   const [usernameInput, setUsernameInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -3142,7 +3141,7 @@ function AdminPortal() {
       setInquiries(Array.isArray(inqRows) ? inqRows : [])
       setIsUnlocked(true)
     } catch (err) {
-      const msg = err?.message || 'Unable to load admin records from Supabase.'
+      const msg = err?.message || 'Unable to load admin records.'
       if (/404|could not find the function|verify_admin_credentials|admin_list/i.test(msg)) {
         setRpcMissing(true)
       }
@@ -3153,28 +3152,24 @@ function AdminPortal() {
   }
 
   useEffect(() => {
-    if (!credentials?.username || !credentials?.password) return
-    verifyAdminCredentials(credentials.username, credentials.password)
-      .then((ok) => {
-        if (ok) {
-          loadAdminData(credentials.username, credentials.password)
-        } else {
-          sessionStorage.removeItem('treviora_admin_auth')
-          setCredentials(null)
-        }
-      })
-      .catch((err) => {
-        if (/404|could not find the function|verify_admin_credentials/i.test(err?.message || '')) {
-          setRpcMissing(true)
-          setStatusBanner('Database functions are not installed yet. Run supabase/admin_rpc.sql once in your Supabase SQL Editor.')
-        }
-      })
+    try {
+      sessionStorage.removeItem('treviora_admin_auth')
+    } catch { /* ignore */ }
   }, [])
 
   const handleUnlock = async (event) => {
     event.preventDefault()
-    const cleanUser = usernameInput.trim()
-    const cleanPass = passwordInput.trim()
+    const rate = checkRateLimit('admin_login', 5, 5 * 60 * 1000)
+    if (!rate.allowed) {
+      setAuthError(`Too many login attempts. Please wait ${rate.retryAfterSec}s before trying again.`)
+      return
+    }
+    const cleanUser = sanitizeText(usernameInput, 64)
+    const cleanPass = String(passwordInput || '').trim().slice(0, 128)
+    if (!cleanUser || !cleanPass) {
+      setAuthError('Username and password are required.')
+      return
+    }
     setAuthLoading(true)
     setAuthError('')
     setRpcMissing(false)
@@ -3184,16 +3179,16 @@ function AdminPortal() {
         setAuthError('Invalid admin username or password. Please verify your credentials.')
         return
       }
+      resetRateLimit('admin_login')
       const nextCreds = { username: cleanUser, password: cleanPass }
-      sessionStorage.setItem('treviora_admin_auth', JSON.stringify(nextCreds))
       setCredentials(nextCreds)
       setPasswordInput('')
       await loadAdminData(cleanUser, cleanPass)
     } catch (err) {
-      const msg = err?.message || 'Database verification failed.'
+      const msg = err?.message || 'Authentication service failed.'
       if (/404|could not find the function|verify_admin_credentials/i.test(msg)) {
         setRpcMissing(true)
-        setAuthError('Admin backend SQL has not been applied on Supabase yet. Run supabase/admin_rpc.sql once in Supabase SQL Editor.')
+        setAuthError('Admin backend service is not configured yet.')
       } else {
         setAuthError(msg)
       }
@@ -3203,7 +3198,6 @@ function AdminPortal() {
   }
 
   const handleLock = () => {
-    sessionStorage.removeItem('treviora_admin_auth')
     setCredentials(null)
     setIsUnlocked(false)
     setProjects([])
@@ -3215,14 +3209,19 @@ function AdminPortal() {
   const handleImageFileChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
+    const fileCheck = validateImageFile(file)
+    if (!fileCheck.ok) {
+      setStatusBanner(fileCheck.error)
+      return
+    }
     setIsUploadingImage(true)
     setStatusBanner('')
     try {
       const publicUrl = await uploadProjectImage(file)
       setFormState((prev) => ({ ...prev, image_url: publicUrl }))
-      setStatusBanner('Image uploaded cleanly to Supabase Storage (project-images).')
+      setStatusBanner('Image uploaded cleanly to storage.')
     } catch (err) {
-      setStatusBanner(`Image upload failed: ${err?.message || 'Run supabase/admin_rpc.sql to configure project-images bucket policies.'}`)
+      setStatusBanner(`Image upload failed: ${err?.message || 'Unable to upload image.'}`)
     } finally {
       setIsUploadingImage(false)
     }
@@ -3330,16 +3329,7 @@ function AdminPortal() {
               <p>Sign in with your Supabase-verified administrator username and password to manage live portfolio projects.</p>
               {rpcMissing && (
                 <div className="admin-alert is-warning">
-                  One-time SQL setup required: run <code>supabase/admin_rpc.sql</code> in{' '}
-                  <a
-                    href="https://supabase.com/dashboard/project/gptanjtcmtemalwrvrht/sql/new"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ textDecoration: 'underline', color: '#fff' }}
-                  >
-                    Supabase SQL Editor ↗
-                  </a>{' '}
-                  to create the <code>admin_users</code> table and CRUD endpoints.
+                  Admin backend service is unavailable. Please contact the system administrator.
                 </div>
               )}
               <form className="admin-login-form" onSubmit={handleUnlock}>
@@ -3415,7 +3405,7 @@ function AdminPortal() {
               {statusBanner && <div className="admin-alert is-info" role="status">{statusBanner}</div>}
               {rpcMissing && (
                 <div className="admin-alert is-warning">
-                  Run <code>supabase/admin_rpc.sql</code> in Supabase SQL Editor to enable admin endpoints and storage uploads.
+                  Admin backend endpoints are currently unavailable.
                 </div>
               )}
 
@@ -3910,13 +3900,24 @@ function Contact() {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
+    const rate = checkRateLimit('contact_submit', 3, 2 * 60 * 1000)
+    if (!rate.allowed) {
+      setStatusMessage(`Too many submissions. Please wait ${rate.retryAfterSec}s before sending another inquiry.`)
+      return
+    }
+
     const form = event.currentTarget
     const formData = new FormData(form)
-    const full_name = String(formData.get('from_name') || '').trim()
-    const email = String(formData.get('from_email') || '').trim()
-    const subject = String(formData.get('subject') || '').trim()
-    const service_interest = String(formData.get('service_interest') || '').trim()
-    const message = String(formData.get('message') || '').trim()
+    const full_name = sanitizeText(formData.get('from_name'), 120)
+    const email = sanitizeText(formData.get('from_email'), 254)
+    const subject = sanitizeText(formData.get('subject'), 200)
+    const service_interest = sanitizeText(formData.get('service_interest'), 120)
+    const message = sanitizeMultilineText(formData.get('message'), 2500)
+
+    if (!full_name || !isValidEmail(email) || !subject || !message) {
+      setStatusMessage('Please provide a valid name, email address, subject, and message.')
+      return
+    }
 
     setIsSending(true)
     setStatusMessage('')
@@ -4955,7 +4956,7 @@ export default function App() {
           ))}
           <Route path="/work" element={<Projects />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/admin" element={<AdminPortal />} />
+          <Route path="/admin" element={IS_ADMIN_HOST ? <AdminPortal /> : <NotFound />} />
           <Route path="/services" element={<ServiceDirectory />} />
           {services.map((service) => (
             <Route key={service.slug} path={`/${service.slug}`} element={<ServiceCategory slug={service.slug} />} />
